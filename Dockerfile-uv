@@ -1,0 +1,57 @@
+ARG BASE_IMAGE=nvcr.io/nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
+FROM $BASE_IMAGE
+
+VOLUME [ "/ernerf" ]
+
+RUN apt-get update -yq --fix-missing \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+    pkg-config \
+    wget \
+    cmake \
+    curl \
+    git \
+    vim \
+    portaudio19-dev \
+    ffmpeg \
+    libsm6 \
+    libxext6
+
+# Install uv (fast Python package manager)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+# Create a virtual environment at /app/.venv
+ENV VIRTUAL_ENV=/app/.venv
+RUN uv venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Install Python 3.10
+ENV UV_PYTHON_INSTALL_DIR=/opt/python
+RUN uv python install 3.10
+
+# Install PyTorch with CUDA 11.7 support
+RUN uv pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
+
+# Install requirements from requirements.txt
+COPY requirements.txt ./
+RUN uv pip install -r requirements.txt
+
+# Install additional dependencies via uv
+RUN uv pip install fvcore iopath
+RUN uv pip install nvidiacub
+
+# Install pytorch3d (pre-built wheel for Python 3.10 + CUDA 11.7 + PyTorch 1.13.1)
+RUN uv pip install --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py310_cu117_pyt1131/download.html
+
+# Install tensorflow-gpu
+RUN uv pip install tensorflow-gpu==2.8.0
+
+# Fix protobuf version conflict
+RUN uv pip uninstall protobuf && uv pip install protobuf==3.20.1
+
+# Set library path for CUDA runtime
+RUN ln -s /usr/local/cuda-11.7/lib64/libcudart.so /usr/lib/libcudart.so
+
+COPY ./ /ernerf
+WORKDIR /ernerf
+
+CMD ["/bin/bash"]

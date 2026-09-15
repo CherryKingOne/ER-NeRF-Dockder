@@ -41,3 +41,57 @@ python main.py data/obama/ --workspace trial_obama/ -O --test
 ```
 
 需要注意:Dockerfile 本身不会自动下载 face-parsing 模型、3DMM 模型或数据集,这些仍需按 README 中「Preparation」部分的说明在容器内(或挂载的目录中)手动下载。
+
+---
+
+## 使用 uv 构建的替代方案
+
+仓库还提供了一个使用 [uv](https://github.com/astral-sh/uv) (快速 Python 包管理器) 的 Dockerfile，可以替代 conda 方案，构建速度更快。
+
+### Dockerfile 内容说明
+
+该 Dockerfile 同样基于 `nvcr.io/nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04` 镜像，使用 uv 管理 Python 环境（Python 3.10），安装 PyTorch 1.13.1、CUDA 11.7、pytorch3d、tensorflow-gpu 等依赖。
+
+### 构建镜像
+
+在仓库根目录执行:
+
+```bash
+docker build -f Dockerfile-uv -t ernerf-uv .
+```
+
+### 启动容器
+
+```bash
+docker run --gpus all -it \
+  -v $(pwd):/ernerf \
+  ernerf-uv
+```
+
+进入容器后(默认工作目录为 `/ernerf`),即可按照 README 中的说明继续操作,例如:
+
+- 数据预处理:
+```bash
+python data_utils/process.py data/<ID>/<ID>.mp4
+```
+
+- 训练:
+```bash
+python main.py data/obama/ --workspace trial_obama/ -O --iters 100000
+python main.py data/obama/ --workspace trial_obama/ -O --iters 125000 --finetune_lips --patch_size 32
+``` 
+
+- 测试/推理:
+```bash
+python main.py data/obama/ --workspace trial_obama/ -O --test
+```
+
+### uv 方案与 conda 方案对比
+
+| 特性 | conda 方案 (Dockerfile-conda) | uv 方案 (Dockerfile-uv) |
+|------|------------------------------|------------------------|
+| 包管理器 | Miniconda | uv |
+| 构建速度 | 较慢 | 较快 |
+| 镜像体积 | 较大 (~15-20GB) | 较小 (~10-15GB) |
+| 依赖解析 | conda solver | uv resolver (更快) |
+| 系统要求 | 无特殊要求 | 需要较新 Docker 版本以支持 COPY --from |
