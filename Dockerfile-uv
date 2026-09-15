@@ -32,7 +32,6 @@ RUN uv pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 --extra-index-u
 
 # Install additional dependencies via uv
 RUN uv pip install fvcore iopath
-RUN uv pip install nvidiacub
 
 # Install pytorch3d (pre-built wheel for Python 3.10 + CUDA 11.7 + PyTorch 1.13.1)
 RUN uv pip install --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py310_cu117_pyt1131/download.html
